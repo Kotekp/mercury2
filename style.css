@@ -673,6 +673,35 @@ textarea { font-family: inherit; }
     overflow-wrap: break-word;
 }
 
+/* === Text Formats === */
+.msg-highlight {
+    background-color: rgba(234, 179, 8, 0.25);
+    color: #fce7f3;
+    padding: 0 4px;
+    border-radius: 3px;
+}
+
+.msg-spoiler {
+    background-color: var(--border-color);
+    color: transparent;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    padding: 0 4px;
+}
+.msg-spoiler.revealed {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+}
+
+.msg-quote {
+    border-left: 3px solid var(--accent-1);
+    padding-left: 12px;
+    margin: 8px 0;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
 /* === Code Block Wrapper === */
 .code-block-wrapper {
     margin: 12px 0;

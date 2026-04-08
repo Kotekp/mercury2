@@ -20,8 +20,9 @@ const SYSTEM_PROMPT = `Você é um assistente de IA extremamente inteligente, an
 
 2. **Respostas inteligentes**: Suas respostas devem ser:
    - Aprofundadas e demonstrar compreensão real do material
-   - Bem estruturadas com markdown (títulos, listas, código formatado, tabelas)
-   - Diretas e úteis, sem enrolação
+    - Respostas bem estruturadas (use markdown, títulos, código formatado)
+    - Para poesias ou letras de música, envolva TODO o bloco lírico entre as tags `[LETRA]` e `[/LETRA]`.
+    - Seja direto, sem introduções robóticas.
 
 3. **Programação**: Quando solicitado código:
    - Escreva código completo, funcional e bem comentado
@@ -362,8 +363,9 @@ function escapeHtml(str) {
 function formatMessage(text) {
     if (!text) return '';
 
-    // Step 1: Extract code blocks, inline code, and tables to protect them
+    // Step 1: Extract code blocks, lyrics, inline code, and tables to protect them
     const codeBlocks = [];
+    const lyricsBlocks = [];
     const inlineCodes = [];
     const tables = [];
 
@@ -372,6 +374,13 @@ function formatMessage(text) {
         const index = codeBlocks.length;
         codeBlocks.push({ lang: lang || '', code: code.replace(/\n$/, '') });
         return `%%CODEBLOCK_${index}%%`;
+    });
+
+    // Extract Lyrics blocks [LETRA] ... [/LETRA]
+    processed = processed.replace(/\[(?:LETRA|LYRICS)\]\n?([\s\S]*?)\n?\[\/(?:LETRA|LYRICS)\]/gi, (match, content) => {
+        const index = lyricsBlocks.length;
+        lyricsBlocks.push(content);
+        return `%%LYRICS_${index}%%`;
     });
 
     // Extract inline code (`code`)
@@ -407,6 +416,15 @@ function formatMessage(text) {
 
     // Strikethrough (~~text~~)
     processed = processed.replace(/~~(.+?)~~/g, '<del>$1</del>');
+
+    // Underline (__text__)
+    processed = processed.replace(/__(.+?)__/g, '<u>$1</u>');
+
+    // Highlight (==text==)
+    processed = processed.replace(/==(.+?)==/g, '<mark class="msg-highlight">$1</mark>');
+
+    // Spoiler (||text||)
+    processed = processed.replace(/\|\|(.+?)\|\|/g, `<span class="msg-spoiler" onclick="this.classList.toggle('revealed')">$1</span>`);
 
     // Links [text](url)
     processed = processed.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener" class="msg-link">$1</a>');
@@ -457,13 +475,20 @@ function formatMessage(text) {
         processed = processed.replace(`%%CODEBLOCK_${index}%%`, codeHTML);
     });
 
-    // 4b: Tables second (may contain INLINE placeholders inside cells)
+    // 4b: Lyrics
+    lyricsBlocks.forEach((content, index) => {
+        const escapedContent = escapeHtml(content.trim()).replace(/\n/g, '<br>');
+        const lyricsHTML = `<div class="msg-quote lyrics-block" style="font-family: 'Inter', sans-serif; font-style: italic; text-align: center; border-left: none; background: rgba(255, 255, 255, 0.03); padding: 18px; border-radius: 12px; margin: 16px 0; color: var(--text-primary); border: 1px solid rgba(255, 255, 255, 0.05);"> <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity: 0.5; margin-bottom: 8px;"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg><br> ${escapedContent}</div>`;
+        processed = processed.replace(`%%LYRICS_${index}%%`, lyricsHTML);
+    });
+
+    // 4c: Tables
     tables.forEach((tableRaw, index) => {
         const tableHTML = parseMarkdownTable(tableRaw);
         processed = processed.replace(`%%TABLE_${index}%%`, tableHTML);
     });
 
-    // 4c: Inline codes LAST (so they replace inside table HTML and everywhere else)
+    // 4d: Inline codes LAST (so they replace inside table HTML and everywhere else)
     inlineCodes.forEach((code, index) => {
         const escapedCode = escapeHtml(code);
         processed = processed.replaceAll(`%%INLINE_${index}%%`, `<code class="inline-code">${escapedCode}</code>`);
