@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mercury AI — Chat Inteligente com Envio de Arquivos</title>
+    <meta name="description" content="Chat com a IA Mercury 2 da Inception Labs. Converse em tempo real, envie PDFs, imagens e documentos. Login com Google.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- Google Identity Services -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <!-- PDF.js for reading PDF files in browser -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.9.155/pdf.min.mjs" type="module"></script>
+    <script>
+        // Load PDF.js as global for use in app.js
+        window.pdfjsReady = import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.9.155/pdf.min.mjs').then(pdfjs => {
+            pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.9.155/pdf.worker.min.mjs';
+            window.pdfjsLib = pdfjs;
+            return pdfjs;
+        }).catch(() => {
+            console.warn('PDF.js failed to load, PDF text extraction will be unavailable');
+            window.pdfjsLib = null;
+        });
+    </script>
+    <!-- Tesseract.js for OCR (reading text from images) -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Animated Background -->
+    <canvas id="bg-canvas"></canvas>
+
+    <!-- ===== LOGIN SCREEN ===== -->
+    <div class="screen screen-login active" id="screen-login">
+        <div class="login-container">
+            <div class="login-logo">
+                <div class="mercury-orb">
+                    <div class="orb-ring r1"></div>
+                    <div class="orb-ring r2"></div>
+                    <div class="orb-ring r3"></div>
+                    <div class="orb-core"></div>
+                </div>
+            </div>
+            <h1 class="login-title">Mercury <span class="accent-2">AI</span></h1>
+            <p class="login-subtitle">O modelo de linguagem mais rápido do mundo.<br>Converse, envie arquivos e muito mais.</p>
+            
+            <div class="login-features">
+                <div class="login-feature">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13,2 3,14 12,14 11,22 21,10 12,10 13,2"/></svg>
+                    <span>1,009 tokens/seg</span>
+                </div>
+                <div class="login-feature">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    <span>Envio de arquivos</span>
+                </div>
+                <div class="login-feature">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    <span>128K contexto</span>
+                </div>
+            </div>
+
+            <!-- API Key Input -->
+            <div class="api-key-section">
+                <label for="api-key-input" class="api-label">Chave da API Mercury</label>
+                <div class="api-input-wrapper">
+                    <input type="password" id="api-key-input" placeholder="cole sua chave aqui..." class="api-input" autocomplete="off">
+                    <button class="api-toggle-btn" id="api-toggle-btn" aria-label="Mostrar/ocultar chave">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    </button>
+                </div>
+                <a href="https://platform.inceptionlabs.ai/dashboard/api-keys" target="_blank" class="api-get-key">Obter chave gratuita →</a>
+            </div>
+
+            <!-- Google Login Button -->
+            <button class="google-btn" id="google-login-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                </svg>
+                <span>Entrar com Google</span>
+            </button>
+
+            <p class="login-disclaimer">Ao continuar, você concorda com os termos de uso.</p>
+        </div>
+    </div>
+
+    <!-- ===== CHAT SCREEN ===== -->
+    <div class="screen screen-chat" id="screen-chat">
+        <!-- Chat Header -->
+        <header class="chat-header">
+            <div class="chat-header-left">
+                <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Menu">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="3" y1="6" x2="21" y2="6"/>
+                        <line x1="3" y1="12" x2="21" y2="12"/>
+                        <line x1="3" y1="18" x2="21" y2="18"/>
+                    </svg>
+                </button>
+                <div class="chat-header-info">
+                    <div class="header-model-badge">
+                        <div class="model-dot"></div>
+                        <span>Mercury 2</span>
+                    </div>
+                </div>
+            </div>
+            <div class="chat-header-right">
+                <button class="new-chat-btn" id="new-chat-btn" aria-label="Nova conversa">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19"/>
+                        <line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                </button>
+                <div class="user-avatar-small" id="user-avatar">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                        <circle cx="12" cy="7" r="4"/>
+                    </svg>
+                </div>
+            </div>
+        </header>
+
+        <!-- Sidebar -->
+        <div class="sidebar-overlay" id="sidebar-overlay"></div>
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <svg width="22" height="22" viewBox="0 0 28 28" fill="none">
+                        <path d="M14 2L2 8L14 14L26 8L14 2Z" fill="url(#sg1)" opacity="0.9"/>
+                        <path d="M2 20L14 26L26 20" stroke="url(#sg2)" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M2 14L14 20L26 14" stroke="url(#sg2)" stroke-width="2" stroke-linecap="round"/>
+                        <defs>
+                            <linearGradient id="sg1" x1="2" y1="2" x2="26" y2="14"><stop stop-color="#7C3AED"/><stop offset="1" stop-color="#06B6D4"/></linearGradient>
+                            <linearGradient id="sg2" x1="2" y1="14" x2="26" y2="26"><stop stop-color="#7C3AED"/><stop offset="1" stop-color="#06B6D4"/></linearGradient>
+                        </defs>
+                    </svg>
+                    <span>Mercury AI</span>
+                </div>
+                <button class="sidebar-close" id="sidebar-close" aria-label="Fechar">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <button class="sidebar-new-chat" id="sidebar-new-chat">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                <span>Nova Conversa</span>
+            </button>
+            <div class="sidebar-section-title">Conversas Recentes</div>
+            <div class="sidebar-chats" id="sidebar-chats">
+                <!-- dynamically populated -->
+            </div>
+            <div class="sidebar-footer">
+                <div class="sidebar-user" id="sidebar-user">
+                    <div class="sidebar-user-avatar" id="sidebar-user-avatar">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    </div>
+                    <span class="sidebar-user-name" id="sidebar-user-name">Usuário</span>
+                </div>
+                <button class="logout-btn" id="logout-btn" aria-label="Sair">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Chat Messages -->
+        <div class="chat-messages" id="chat-messages">
+            <!-- Welcome message -->
+            <div class="welcome-container" id="welcome-container">
+                <div class="welcome-orb-mini">
+                    <div class="orb-core"></div>
+                </div>
+                <h2 class="welcome-title">Olá! Como posso ajudar?</h2>
+                <p class="welcome-desc">Sou o Mercury 2, o modelo de IA mais rápido do mundo. Posso responder perguntas, analisar arquivos e muito mais.</p>
+                <div class="welcome-suggestions">
+                    <button class="suggestion-chip" data-prompt="Explique como funciona um modelo de difusão">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                        Explique modelos de difusão
+                    </button>
+                    <button class="suggestion-chip" data-prompt="Escreva um código Python para ler um arquivo PDF e extrair o texto">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16,18 22,12 16,6"/><polyline points="8,6 2,12 8,18"/></svg>
+                        Código para ler PDF
+                    </button>
+                    <button class="suggestion-chip" data-prompt="Me ajude a escrever um email profissional">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                        Escrever email profissional
+                    </button>
+                    <button class="suggestion-chip" data-prompt="Quais são as tendências de tecnologia para 2026?">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13,2 3,14 12,14 11,22 21,10 12,10 13,2"/></svg>
+                        Tendências tech 2026
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Input Area -->
+        <div class="chat-input-area">
+            <!-- Attached Files Preview -->
+            <div class="attached-files" id="attached-files" style="display:none;">
+                <!-- filled dynamically -->
+            </div>
+            <div class="chat-input-wrapper">
+                <button class="attach-btn" id="attach-btn" aria-label="Anexar arquivo">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+                    </svg>
+                </button>
+                <input type="file" id="file-input" multiple hidden>
+                <textarea class="chat-input" id="chat-input" placeholder="Envie uma mensagem..." rows="1"></textarea>
+                <button class="send-btn" id="send-btn" aria-label="Enviar" disabled>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="22" y1="2" x2="11" y2="13"/>
+                        <polygon points="22,2 15,22 11,13 2,9 22,2"/>
+                    </svg>
+                </button>
+            </div>
+            <p class="input-disclaimer">Mercury 2 pode cometer erros. Verifique informações importantes.</p>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
