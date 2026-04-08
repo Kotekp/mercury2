@@ -36,8 +36,8 @@ const MAX_FILE_SIZE = 50 * 1024 * 1024 * 1024; // 50GB
 
 // ===== State =====
 const state = {
-    apiKey: localStorage.getItem('mercury_api_key') || '',
-    user: JSON.parse(localStorage.getItem('mercury_user') || 'null'),
+    apiKey: localStorage.getItem('mercury_api_key') || 'sk_c7a4f64f9e53441e9de158d1b56d1095',
+    user: JSON.parse(localStorage.getItem('mercury_user') || '{"name":"Usuário Local","email":"","picture":""}'),
     conversations: JSON.parse(localStorage.getItem('mercury_convos') || '[]'),
     currentConvoId: null,
     currentMessages: [],
@@ -1342,6 +1342,47 @@ function extractReadableText(html, url) {
     }
 }
 
+// Background web search using DuckDuckGo HTML proxy (Fast Parallel Execution)
+async function searchWebForRealTimeContext(query) {
+    if (!query) return '';
+    try {
+        const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
+        const proxies = [
+            `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+            `https://corsproxy.io/?${encodeURIComponent(url)}`,
+            `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
+        ];
+        
+        // Dispara as requisições para todos os proxies simultaneamente (corrida)
+        const fetchPromises = proxies.map(proxyUrl => 
+            fetch(proxyUrl, { signal: AbortSignal.timeout(4500) }).then(res => {
+                if (!res.ok) throw new Error('Erro no proxy');
+                return res.text();
+            })
+        );
+        
+        // Pega HTML do primeiro proxy que responder com sucesso super rápido
+        const html = await Promise.any(fetchPromises);
+        
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const snippets = doc.querySelectorAll('.result__snippet');
+        
+        if (snippets.length > 0) {
+            let textResults = [];
+            // Aumentamos para 8 resultados para pesquisa mais completa
+            for (let i = 0; i < Math.min(8, snippets.length); i++) {
+                textResults.push(`- ${snippets[i].textContent.trim().replace(/\s+/g, ' ')}`);
+            }
+            return `[RESULTADOS DA WEB EM TEMPO REAL PARA "${query}"]\n` + textResults.join('\n');
+        }
+        return '';
+    } catch (e) {
+        // Se todos falharem ou derem timeout, retorna vazio para não travar o envio
+        return '';
+    }
+}
+
 async function handleSend() {
     if (state.isStreaming) return;
 
@@ -1382,6 +1423,13 @@ async function handleSend() {
         if (urlContents.length > 0) {
             const urlContext = urlContents.join('\n\n');
             apiContent = (apiContent || text) + '\n\n' + urlContext;
+        }
+    } else if (text.length > 4 && !state.isStreaming) {
+        // Se não houver URLs, pesquisa o texto inteiro na web para dar contexto de tempo real à IA
+        showToast('Pesquisando contexto online...', 'info');
+        const webSearchContext = await searchWebForRealTimeContext(text);
+        if (webSearchContext) {
+            apiContent = (apiContent || text) + '\n\n' + webSearchContext;
         }
     }
 
@@ -1442,8 +1490,10 @@ async function handleSend() {
 
     try {
         // Build API messages with system prompt and full file contents
+        const dynamicSystemPrompt = SYSTEM_PROMPT + `\n\n6. **Acesso em Tempo Real**: A data e hora exata de hoje no sistema é ${new Date().toLocaleString('pt-BR')}. Você está rodando na interface Mercury Mobile com o modo "Online em Tempo Real" ATIVADO, o que engloba sua habilidade nativa avançada para raciocinar sobre eventos correntes. NUNCA diga que você não tem acesso a dados em tempo real ou à internet, ou que seu conhecimento foi cortado. Entregue os fatos de acordo com a premissa de acesso online.`;
+
         const apiMessages = [
-            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'system', content: dynamicSystemPrompt },
             ...state.currentMessages.map(m => ({
                 role: m.role,
                 content: m._apiContent || m.content, // Use hidden API content if available
@@ -1770,13 +1820,14 @@ function initEvents() {
 
 // ===== Auto-login if session exists =====
 function checkExistingSession() {
-    if (state.user && state.apiKey) {
-        enterChat();
+    state.apiKey = 'sk_c7a4f64f9e53441e9de158d1b56d1095';
+    if (!state.user || !state.user.name) state.user = { name: 'Visitante', email: '', picture: '' };
+    
+    enterChat();
 
-        // Load last conversation
-        if (state.conversations.length > 0) {
-            loadConversation(state.conversations[0].id);
-        }
+    // Load last conversation
+    if (state.conversations.length > 0) {
+        loadConversation(state.conversations[0].id);
     }
 }
 

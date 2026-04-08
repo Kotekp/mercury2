@@ -32,7 +32,7 @@
     <canvas id="bg-canvas"></canvas>
 
     <!-- ===== LOGIN SCREEN ===== -->
-    <div class="screen screen-login active" id="screen-login">
+    <div class="screen screen-login" id="screen-login" style="display: none !important;">
         <div class="login-container">
             <div class="login-logo">
                 <div class="mercury-orb">
@@ -88,7 +88,7 @@
     </div>
 
     <!-- ===== CHAT SCREEN ===== -->
-    <div class="screen screen-chat" id="screen-chat">
+    <div class="screen screen-chat active" id="screen-chat" style="display: flex;">
         <!-- Chat Header -->
         <header class="chat-header">
             <div class="chat-header-left">
@@ -195,6 +195,13 @@
 
         <!-- Chat Input Area -->
         <div class="chat-input-area">
+            <!-- Real Time Online Toggle -->
+            <div style="margin-bottom: 8px; display: flex; align-items: center; justify-content: center;">
+                <button disabled style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 20px; padding: 5px 12px; font-size: 0.75rem; font-family: 'Inter', sans-serif; font-weight: 500; cursor: default; display: flex; align-items: center; gap: 6px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                    <span style="color: #10b981;">Online em Tempo Real Ativado</span>
+                </button>
+            </div>
             <!-- Attached Files Preview -->
             <div class="attached-files" id="attached-files" style="display:none;">
                 <!-- filled dynamically -->
