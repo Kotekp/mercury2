@@ -36,8 +36,8 @@ const MAX_FILE_SIZE = 50 * 1024 * 1024 * 1024; // 50GB
 
 // ===== State =====
 const state = {
-    apiKey: localStorage.getItem('mercury_api_key') || 'sk_c7a4f64f9e53441e9de158d1b56d1095',
-    user: JSON.parse(localStorage.getItem('mercury_user') || '{"name":"Usuário Local","email":"","picture":""}'),
+    apiKey: localStorage.getItem('mercury_api_key') || '',
+    user: JSON.parse(localStorage.getItem('mercury_user') || 'null'),
     conversations: JSON.parse(localStorage.getItem('mercury_convos') || '[]'),
     currentConvoId: null,
     currentMessages: [],
@@ -1820,14 +1820,13 @@ function initEvents() {
 
 // ===== Auto-login if session exists =====
 function checkExistingSession() {
-    state.apiKey = 'sk_c7a4f64f9e53441e9de158d1b56d1095';
-    if (!state.user || !state.user.name) state.user = { name: 'Visitante', email: '', picture: '' };
-    
-    enterChat();
+    if (state.user && state.apiKey) {
+        enterChat();
 
-    // Load last conversation
-    if (state.conversations.length > 0) {
-        loadConversation(state.conversations[0].id);
+        // Load last conversation
+        if (state.conversations.length > 0) {
+            loadConversation(state.conversations[0].id);
+        }
     }
 }
 
