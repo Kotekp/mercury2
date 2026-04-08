@@ -54,7 +54,7 @@ const el = {
     screenChat: $('#screen-chat'),
     apiKeyInput: $('#api-key-input'),
     apiToggleBtn: $('#api-toggle-btn'),
-    googleLoginBtn: $('#google-login-btn'),
+    loginConfirmBtn: $('#login-confirm-btn'),
     sidebarToggle: $('#sidebar-toggle'),
     sidebarOverlay: $('#sidebar-overlay'),
     sidebar: $('#sidebar'),
@@ -135,11 +135,9 @@ function showScreen(name) {
     $(`#screen-${name}`).classList.add('active');
 }
 
-// ===== Google Login =====
-function initGoogleLogin() {
-    // We use a simplified approach: simulate Google login with the GIS library
-    // The user clicks the button, and we create a Google One Tap flow
-    el.googleLoginBtn.addEventListener('click', () => {
+// ===== Login =====
+function initLogin() {
+    el.loginConfirmBtn.addEventListener('click', () => {
         const apiKey = el.apiKeyInput.value.trim();
         if (!apiKey) {
             showToast('Por favor, insira sua chave da API Mercury', 'warning');
@@ -151,45 +149,8 @@ function initGoogleLogin() {
         state.apiKey = apiKey;
         localStorage.setItem('mercury_api_key', apiKey);
 
-        // Try Google Identity Services
-        try {
-            if (typeof google !== 'undefined' && google.accounts) {
-                google.accounts.id.initialize({
-                    client_id: 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com',
-                    callback: handleGoogleCredential,
-                    auto_select: false,
-                });
-                google.accounts.id.prompt((notification) => {
-                    if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-                        // Fallback: login without Google
-                        loginAsGuest();
-                    }
-                });
-            } else {
-                // GIS not loaded, login as guest
-                loginAsGuest();
-            }
-        } catch (e) {
-            loginAsGuest();
-        }
-    });
-}
-
-function handleGoogleCredential(response) {
-    // Decode the JWT token from Google
-    try {
-        const payload = JSON.parse(atob(response.credential.split('.')[1]));
-        const user = {
-            name: payload.name || 'Usuário Google',
-            email: payload.email || '',
-            picture: payload.picture || '',
-        };
-        state.user = user;
-        localStorage.setItem('mercury_user', JSON.stringify(user));
-        enterChat();
-    } catch (e) {
         loginAsGuest();
-    }
+    });
 }
 
 function loginAsGuest() {
@@ -1702,8 +1663,8 @@ function initEvents() {
     // API key toggle
     initApiKeyToggle();
 
-    // Google login
-    initGoogleLogin();
+    // Login
+    initLogin();
 
     // Sidebar
     el.sidebarToggle.addEventListener('click', openSidebar);
