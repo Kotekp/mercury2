@@ -35,11 +35,18 @@ const SYSTEM_PROMPT = `Você é um assistente de IA extremamente inteligente, an
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024 * 1024; // 50GB
 
+function safeJSONParse(str, defaultVal) {
+    try { return str ? JSON.parse(str) : defaultVal; }
+    catch(e) { return defaultVal; }
+}
+
 // ===== State =====
+const parsedConvos = safeJSONParse(localStorage.getItem('mercury_convos'), []);
+
 const state = {
     apiKey: localStorage.getItem('mercury_api_key') || '',
-    user: JSON.parse(localStorage.getItem('mercury_user') || 'null'),
-    conversations: JSON.parse(localStorage.getItem('mercury_convos') || '[]'),
+    user: safeJSONParse(localStorage.getItem('mercury_user'), null),
+    conversations: Array.isArray(parsedConvos) ? parsedConvos : [],
     currentConvoId: null,
     currentMessages: [],
     attachedFiles: [],
@@ -570,7 +577,7 @@ function formatTableCell(cell) {
         inlinePlaceholders.push(match);
         return `@@TCINLINE_${inlinePlaceholders.length - 1}@@`;
     });
-    
+
     html = escapeHtml(html);
     // Bold
     html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
@@ -578,12 +585,12 @@ function formatTableCell(cell) {
     html = html.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
     // Italic
     html = html.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>');
-    
+
     // Restore INLINE placeholders
     inlinePlaceholders.forEach((placeholder, i) => {
         html = html.replace(`@@TCINLINE_${i}@@`, placeholder);
     });
-    
+
     return html;
 }
 
@@ -945,12 +952,12 @@ async function extractPdfText(file) {
         for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
             const page = await pdf.getPage(pageNum);
             const textContent = await page.getTextContent();
-            
+
             // Smart text joining - respect Y positions for line breaks
             let lastY = null;
             let lines = [];
             let currentLine = '';
-            
+
             for (const item of textContent.items) {
                 if (lastY !== null && Math.abs(item.transform[5] - lastY) > 5) {
                     // Different Y position = new line
@@ -962,7 +969,7 @@ async function extractPdfText(file) {
                 lastY = item.transform[5];
             }
             if (currentLine.trim()) lines.push(currentLine.trim());
-            
+
             const pageText = lines.join('\n').trim();
             if (pageText) {
                 pageTexts.push(pageText);
@@ -979,7 +986,7 @@ async function extractPdfText(file) {
         for (let i = 1; i < pageTexts.length; i++) {
             const prev = pageTexts[i - 1];
             const curr = pageTexts[i];
-            
+
             // If current page starts with the exact same text as previous page,
             // only keep the NEW content
             if (curr.startsWith(prev) && curr.length > prev.length) {
@@ -1222,7 +1229,7 @@ async function fetchUrlContent(url) {
 
             if (response.ok) {
                 const contentType = response.headers.get('content-type') || '';
-                
+
                 // Only process text/html content
                 if (contentType.includes('text') || contentType.includes('html') || contentType.includes('json')) {
                     html = await response.text();
@@ -1240,7 +1247,7 @@ async function fetchUrlContent(url) {
     if (!html) {
         // Last resort: try direct fetch (may work for APIs/CORS-enabled sites)
         try {
-            const response = await fetch(url, { 
+            const response = await fetch(url, {
                 mode: 'cors',
                 signal: AbortSignal.timeout(10000)
             });
@@ -1281,10 +1288,10 @@ function extractReadableText(html, url) {
 
         // Get page title
         const title = doc.querySelector('title')?.textContent?.trim() || '';
-        
+
         // Get meta description
         const metaDesc = doc.querySelector('meta[name="description"]')?.getAttribute('content')?.trim() || '';
-        
+
         // Get Open Graph data
         const ogTitle = doc.querySelector('meta[property="og:title"]')?.getAttribute('content')?.trim() || '';
         const ogDesc = doc.querySelector('meta[property="og:description"]')?.getAttribute('content')?.trim() || '';
@@ -1297,7 +1304,7 @@ function extractReadableText(html, url) {
 
         // Try to get main content
         const mainContent = doc.querySelector('main, article, [role="main"], .content, .post-content, .article-body, .entry-content, #content');
-        
+
         let bodyText = '';
         if (mainContent) {
             bodyText = mainContent.textContent;
@@ -1338,22 +1345,22 @@ async function searchWebForRealTimeContext(query) {
             `https://corsproxy.io/?${encodeURIComponent(url)}`,
             `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
         ];
-        
+
         // Dispara as requisições para todos os proxies simultaneamente (corrida)
-        const fetchPromises = proxies.map(proxyUrl => 
+        const fetchPromises = proxies.map(proxyUrl =>
             fetch(proxyUrl, { signal: AbortSignal.timeout(4500) }).then(res => {
                 if (!res.ok) throw new Error('Erro no proxy');
                 return res.text();
             })
         );
-        
+
         // Pega HTML do primeiro proxy que responder com sucesso super rápido
         const html = await Promise.any(fetchPromises);
-        
+
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
         const snippets = doc.querySelectorAll('.result__snippet');
-        
+
         if (snippets.length > 0) {
             let textResults = [];
             // Aumentamos para 8 resultados para pesquisa mais completa
