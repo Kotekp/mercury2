@@ -40,24 +40,12 @@ function safeJSONParse(str, defaultVal) {
     catch(e) { return defaultVal; }
 }
 
-const SafeStorage = {
-    getItem: function(key) {
-        try { return localStorage.getItem(key); } catch(e) { return null; }
-    },
-    setItem: function(key, val) {
-        try { localStorage.setItem(key, val); } catch(e) {}
-    },
-    removeItem: function(key) {
-        try { localStorage.removeItem(key); } catch(e) {}
-    }
-};
-
 // ===== State =====
-const parsedConvos = safeJSONParse(SafeStorage.getItem('mercury_convos'), []);
+const parsedConvos = safeJSONParse(localStorage.getItem('mercury_convos'), []);
 
 const state = {
-    apiKey: SafeStorage.getItem('mercury_api_key') || '',
-    user: safeJSONParse(SafeStorage.getItem('mercury_user'), null),
+    apiKey: localStorage.getItem('mercury_api_key') || '',
+    user: safeJSONParse(localStorage.getItem('mercury_user'), null),
     conversations: Array.isArray(parsedConvos) ? parsedConvos : [],
     currentConvoId: null,
     currentMessages: [],
@@ -166,7 +154,7 @@ function handleLoginConfirm() {
 
     // Save API key
     state.apiKey = apiKey;
-    SafeStorage.setItem('mercury_api_key', apiKey);
+    localStorage.setItem('mercury_api_key', apiKey);
 
     loginAsGuest();
 }
@@ -201,7 +189,7 @@ function loginAsGuest() {
         email: '',
         picture: '',
     };
-    SafeStorage.setItem('mercury_user', JSON.stringify(state.user));
+    localStorage.setItem('mercury_user', JSON.stringify(state.user));
     showToast('Conectado! Iniciando chat...', 'success');
     enterChat();
 }
@@ -255,7 +243,7 @@ function loadConversation(id) {
 }
 
 function saveConversations() {
-    SafeStorage.setItem('mercury_convos', JSON.stringify(state.conversations));
+    localStorage.setItem('mercury_convos', JSON.stringify(state.conversations));
 }
 
 function updateConvoTitle(id, firstMsg) {
@@ -1766,8 +1754,8 @@ function initEvents() {
 
     // Logout
     el.logoutBtn.addEventListener('click', () => {
-        SafeStorage.removeItem('mercury_user');
-        SafeStorage.removeItem('mercury_api_key');
+        localStorage.removeItem('mercury_user');
+        localStorage.removeItem('mercury_api_key');
         state.user = null;
         state.apiKey = '';
         el.apiKeyInput.value = '';
