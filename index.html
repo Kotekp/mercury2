@@ -11,16 +11,34 @@
     <!-- Google Identity Services -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <!-- PDF.js for reading PDF files in browser -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.9.155/pdf.min.mjs" type="module"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script>
         // Load PDF.js as global for use in app.js
-        window.pdfjsReady = import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.9.155/pdf.min.mjs').then(pdfjs => {
-            pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.9.155/pdf.worker.min.mjs';
-            window.pdfjsLib = pdfjs;
-            return pdfjs;
-        }).catch(() => {
-            console.warn('PDF.js failed to load, PDF text extraction will be unavailable');
-            window.pdfjsLib = null;
+        window.pdfjsReady = new Promise(function(resolve) {
+            try {
+                if (typeof pdfjsLib !== 'undefined') {
+                    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                    window.pdfjsLib = pdfjsLib;
+                    resolve(pdfjsLib);
+                } else {
+                    // Wait for script to load
+                    window.addEventListener('load', function() {
+                        if (typeof pdfjsLib !== 'undefined') {
+                            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                            window.pdfjsLib = pdfjsLib;
+                            resolve(pdfjsLib);
+                        } else {
+                            console.warn('PDF.js failed to load');
+                            window.pdfjsLib = null;
+                            resolve(null);
+                        }
+                    });
+                }
+            } catch(e) {
+                console.warn('PDF.js failed to load, PDF text extraction will be unavailable');
+                window.pdfjsLib = null;
+                resolve(null);
+            }
         });
     </script>
     <!-- Tesseract.js for OCR (reading text from images) -->
@@ -73,7 +91,7 @@
             </div>
 
             <!-- Login/Confirm Button -->
-            <button class="google-btn" id="login-confirm-btn" style="background-color: var(--accent-1); border-color: var(--accent-1); color: white;">
+            <button class="google-btn" id="login-confirm-btn" type="button" style="background: var(--accent); border: none; color: white; touch-action: manipulation; -webkit-tap-highlight-color: rgba(124,58,237,0.3); cursor: pointer; position: relative; z-index: 10;">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                 <span style="color: white; font-weight: 600;">Confirmar Chave e Entrar</span>
             </button>
@@ -220,6 +238,6 @@
         </div>
     </div>
 
-    <script src="app.js?v=3"></script>
+    <script src="app.js"></script>
 </body>
 </html>

@@ -144,20 +144,42 @@ function showScreen(name) {
 }
 
 // ===== Login =====
+function handleLoginConfirm() {
+    const apiKey = el.apiKeyInput.value.trim();
+    if (!apiKey) {
+        showToast('Por favor, insira sua chave da API Mercury', 'warning');
+        el.apiKeyInput.focus();
+        return;
+    }
+
+    // Save API key
+    state.apiKey = apiKey;
+    localStorage.setItem('mercury_api_key', apiKey);
+
+    loginAsGuest();
+}
+
 function initLogin() {
-    el.loginConfirmBtn.addEventListener('click', () => {
-        const apiKey = el.apiKeyInput.value.trim();
-        if (!apiKey) {
-            showToast('Por favor, insira sua chave da API Mercury', 'warning');
-            el.apiKeyInput.focus();
-            return;
+    // Click event (desktop + most mobile)
+    el.loginConfirmBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        handleLoginConfirm();
+    });
+
+    // Touch event fallback for mobile devices
+    el.loginConfirmBtn.addEventListener('touchend', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        handleLoginConfirm();
+    });
+
+    // Enter key on the API key input
+    el.apiKeyInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            handleLoginConfirm();
         }
-
-        // Save API key
-        state.apiKey = apiKey;
-        localStorage.setItem('mercury_api_key', apiKey);
-
-        loginAsGuest();
     });
 }
 
